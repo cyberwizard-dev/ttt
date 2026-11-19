@@ -15,7 +15,7 @@ const STORE = 'tt-continue-watching';
 const FETCH_TIMEOUT = 15000;
 const MIN_REFRESH = 30000;
 const DEFAULT_REFRESH_MINUTES = 5;
-const DEBUG_CW = true;
+const DEBUG_CW = false;
 
 let cachedShelf = null;
 let fetching = false;
@@ -295,12 +295,12 @@ export function refreshContinueWatching() {
       return fetchBrowse(svc, identity);
     })
     .then(function (response) {
-      const summary = summarizeResponse(response);
+      const summary = DEBUG_CW ? summarizeResponse(response) : null;
       const shelf = findContinueShelf(response);
-      const counts = 'shelves=' + summary.shelf + ' grids=' + summary.grid +
+      const counts = summary ? 'shelves=' + summary.shelf + ' grids=' + summary.grid +
         ' lockups=' + summary.lockup + ' tiles=' + summary.tile +
         ' resume=' + summary.resume + ' sectionLists=' + summary.sectionList +
-        ' tvSurface=' + summary.tvSurface;
+        ' tvSurface=' + summary.tvSurface : '';
 
       if (shelf) {
         const hadCache = !!cachedShelf;
