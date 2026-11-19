@@ -8,7 +8,7 @@ import { t } from 'i18next';
 import { requestNextAndNavigateChannel, getFeedbackPanelTokens, sendFeedbackToken } from './utils/innerTubeCalls.js';
 import qrcode from 'qrcode-npm';
 import showGuideSettings from './ui/sidebarModification.js';
-import { cycleABRepeat } from './features/abRepeat.js';
+import { cycleABRepeat, getABRepeatStatus } from './features/abRepeat.js';
 
 export default function resolveCommand(cmd, _) {
     // resolveCommand function is pretty OP, it can do from opening modals, changing client settings and way more.
@@ -148,6 +148,31 @@ export function patchResolveCommand() {
                                 {
                                     signalAction: {
                                         signal: 'POPUP_BACK'
+                                    }
+                                }
+                            ])
+                        );
+                    }
+                    if (configRead('enableABRepeat')) {
+                        const settingsItems = cmd.openPopupAction.popup.overlaySectionRenderer.overlay.overlayTwoPanelRenderer.actionPanel.overlayPanelRenderer.content.overlayPanelItemListRenderer.items;
+                        const speedItem = settingsItems.find(item => {
+                            const iconType = item?.compactLinkRenderer?.icon?.iconType;
+                            return iconType === 'SLOW_MOTION_VIDEO' || iconType === 'SPEEDOMETER';
+                        });
+                        const insertAt = speedItem ? settingsItems.indexOf(speedItem) + 1 : settingsItems.length;
+
+                        settingsItems.splice(insertAt, 0,
+                            buttonItem(
+                                { title: t('player.abRepeat.button'), subtitle: getABRepeatStatus() },
+                                { icon: 'TIMER' }, [
+                                {
+                                    signalAction: {
+                                        signal: 'POPUP_BACK'
+                                    }
+                                },
+                                {
+                                    customAction: {
+                                        action: 'AB_REPEAT_CYCLE'
                                     }
                                 }
                             ])

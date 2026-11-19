@@ -49,6 +49,15 @@ export function isABRepeatActive() {
     return pointA !== null && pointB !== null;
 }
 
+export function getABRepeatStatus() {
+    if (pointA === null) return t('player.abRepeat.statusSetA');
+    if (pointB === null) return t('player.abRepeat.statusSetB', { time: formatTime(pointA) });
+    return t('player.abRepeat.statusClear', {
+        a: formatTime(pointA),
+        b: formatTime(pointB)
+    });
+}
+
 export function resetABRepeat() {
     pointA = null;
     pointB = null;

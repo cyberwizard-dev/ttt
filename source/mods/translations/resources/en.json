@@ -292,7 +292,10 @@
             "aSet": "Point A set at {{time}}. Press again to set point B.",
             "tooShort": "Point B must be at least {{min}} second after point A.",
             "looping": "Looping {{a}} - {{b}}. Press A-B Repeat again to clear.",
-            "cleared": "A-B repeat cleared."
+            "cleared": "A-B repeat cleared.",
+            "statusSetA": "Set point A at the current position",
+            "statusSetB": "Set point B (A at {{time}})",
+            "statusClear": "Clear loop ({{a}} - {{b}})"
         },
         "miniPlayer": "Mini Player",
         "pictureInPicture": "Picture in Picture",

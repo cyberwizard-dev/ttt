@@ -1,5 +1,6 @@
 import { configRead } from '../config.js';
 import { showModal, buttonItem, overlayPanelItemListRenderer } from './ytUI.js';
+import { cycleABRepeat, getABRepeatStatus } from '../features/abRepeat.js';
 import { t } from 'i18next';
 
 const interval = setInterval(() => {
@@ -110,6 +111,27 @@ function speedSettings() {
             ]
         )
     );
+
+    if (configRead('enableABRepeat')) {
+        buttons.push(
+            buttonItem(
+                { title: t('player.abRepeat.button'), subtitle: getABRepeatStatus() },
+                null,
+                [
+                    {
+                        signalAction: {
+                            signal: 'POPUP_BACK'
+                        }
+                    },
+                    {
+                        customAction: {
+                            action: 'AB_REPEAT_CYCLE'
+                        }
+                    }
+                ]
+            )
+        );
+    }
 
     showModal(t('player.playbackSpeed.title'), overlayPanelItemListRenderer(buttons, selectedIndex), 'tt-speed');
 }
