@@ -151,9 +151,11 @@ function buildShelfFromGrid(grid) {
 
   return {
     shelfRenderer: {
-      shelfHeaderRenderer: {
-        title: {
-          simpleText: t('continueWatching.title')
+      headerRenderer: {
+        shelfHeaderRenderer: {
+          title: {
+            simpleText: t('continueWatching.title')
+          }
         }
       },
       tvhtml5ShelfRendererType: 'TVHTML5_SHELF_RENDERER_TYPE_GRID',
