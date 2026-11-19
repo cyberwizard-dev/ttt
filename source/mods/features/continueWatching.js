@@ -1,5 +1,6 @@
 import { configRead } from '../config.js';
 import { onPlayer } from '../utils/Player.js';
+import { t } from 'i18next';
 
 /**
  * Adds a "Continue watching" shelf to the YouTube TV home page.
@@ -21,6 +22,7 @@ let fetching = false;
 let lastFetch = 0;
 let playerHooked = false;
 let retryTimer = null;
+let reloadedForCache = false;
 
 try {
   cachedShelf = JSON.parse(window.localStorage[STORE] || 'null');
@@ -95,7 +97,9 @@ function textOf(t) {
 function titleOf(shelf) {
   const s = shelf && shelf.shelfRenderer;
   if (!s) return '';
-  return textOf(s.title) || textOf(s.headerRenderer && s.headerRenderer.shelfHeaderRenderer && s.headerRenderer.shelfHeaderRenderer.title);
+  return textOf(s.title) ||
+    textOf(s.shelfHeaderRenderer && s.shelfHeaderRenderer.title) ||
+    textOf(s.headerRenderer && s.headerRenderer.shelfHeaderRenderer && s.headerRenderer.shelfHeaderRenderer.title);
 }
 
 function isContinueTitle(title) {
@@ -132,6 +136,38 @@ function resumePercent(item) {
   return 0;
 }
 
+function buildShelfFromGrid(grid) {
+  const items = Array.isArray(grid && grid.items) ? grid.items : [];
+  const resumable = items.filter(function (item) {
+    const percent = resumePercent(item);
+    return percent > 0 && percent < 99;
+  });
+  const fallback = items.filter(function (item) {
+    return resumePercent(item) > 0;
+  });
+  const chosen = (resumable.length ? resumable : fallback).slice(0, 20);
+
+  if (!chosen.length) return null;
+
+  return {
+    shelfRenderer: {
+      shelfHeaderRenderer: {
+        title: {
+          simpleText: t('continueWatching.title')
+        }
+      },
+      tvhtml5ShelfRendererType: 'TVHTML5_SHELF_RENDERER_TYPE_GRID',
+      content: {
+        horizontalListRenderer: {
+          items: chosen,
+          selectedIndex: 0,
+          visibleItemCount: 3
+        }
+      }
+    }
+  };
+}
+
 function findContinueShelf(response) {
   let fallback = null;
   let found = null;
@@ -142,6 +178,14 @@ function findContinueShelf(response) {
     if (Array.isArray(node)) {
       for (let i = 0; i < node.length && !found; i++) walk(node[i], depth + 1);
       return;
+    }
+
+    if (node.gridRenderer) {
+      const gridShelf = buildShelfFromGrid(node.gridRenderer);
+      if (gridShelf) {
+        found = gridShelf;
+        return;
+      }
     }
 
     if (node.shelfRenderer) {
@@ -257,6 +301,7 @@ export function refreshContinueWatching() {
         ' tvSurface=' + summary.tvSurface;
 
       if (shelf) {
+        const hadCache = !!cachedShelf;
         cachedShelf = JSON.parse(JSON.stringify(shelf));
         try {
           window.localStorage[STORE] = JSON.stringify(cachedShelf);
@@ -266,6 +311,18 @@ export function refreshContinueWatching() {
         cwDebug('hist: FOUND "' + (titleOf(shelf) || '(untitled)') + '" items=' +
           shelfItemCount(shelf) + '\n' + counts);
         console.info('[ContinueWatching] cached:', titleOf(shelf) || 'resume shelf');
+
+        if (!hadCache && !reloadedForCache) {
+          let alreadyReloaded = false;
+          try {
+            alreadyReloaded = window.sessionStorage.getItem('tt-cw-reloaded') === '1';
+          } catch (_) {
+            alreadyReloaded = false;
+          }
+          if (!alreadyReloaded) {
+            setTimeout(softReloadHome, 1500);
+          }
+        }
       } else {
         cwDebug('hist: NO SHELF\n' + counts);
         console.warn('[ContinueWatching] no resume shelf in FEhistory');
@@ -327,9 +384,33 @@ function hookPlayer() {
   });
 }
 
+function softReloadHome() {
+  if (reloadedForCache) return;
+  reloadedForCache = true;
+
+  try {
+    window.sessionStorage.setItem('tt-cw-reloaded', '1');
+  } catch (_) {
+    // Session storage is optional for this one-shot refresh.
+  }
+
+  for (const key in window._yttv) {
+    const instance = window._yttv[key] && window._yttv[key].instance;
+    if (instance && typeof instance.resolveCommand === 'function') {
+      instance.resolveCommand({
+        signalAction: {
+          signal: 'SOFT_RELOAD_PAGE'
+        }
+      });
+      return;
+    }
+  }
+}
+
 function start() {
-  // The InnerTube services need a moment after startup.
-  setTimeout(refreshContinueWatching, 2500);
+  // Fetch as early as possible so the shelf is ready before the home feed
+  // is parsed. The service retry loop handles a not-yet-ready client.
+  refreshContinueWatching();
   hookPlayer();
 
   const minutes = Math.max(1, Number(configRead('continueWatchingRefreshMinutes')) || DEFAULT_REFRESH_MINUTES);

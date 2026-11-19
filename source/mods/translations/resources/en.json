@@ -333,6 +333,9 @@
         "goToChannel": "Go To Channel",
         "videoOptions": "Video options"
     },
+    "continueWatching": {
+        "title": "Continue watching"
+    },
     "toasts": {
         "videoAddedToQueue": "Video added to queue.",
         "videoQueueCleared": "Video queue cleared.",
