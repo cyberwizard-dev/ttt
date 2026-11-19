@@ -88,6 +88,7 @@
                             "showSuperThxBtn": "Show Super Thanks Button",
                             "showAIAskBtn": "Show Ask Button",
                             "showSpeedCtrlBtn": "Show Speed Controls Button",
+                            "abRepeat": "Enable A-B Repeat Button and Yellow Key",
                             "addMPBtn": "Show Mini Player Button",
                             "swapMPWithPIP": "Swap Mini Player Button with PiP Button"
                         }
@@ -284,6 +285,14 @@
             "title": "Playback Speed",
             "button": "Speed Controls",
             "fixStuttering": "Fix stuttering (1.0001x)"
+        },
+        "abRepeat": {
+            "title": "A-B Repeat",
+            "button": "A-B Repeat",
+            "aSet": "Point A set at {{time}}. Press again to set point B.",
+            "tooShort": "Point B must be at least {{min}} second after point A.",
+            "looping": "Looping {{a}} - {{b}}. Press A-B Repeat again to clear.",
+            "cleared": "A-B repeat cleared."
         },
         "miniPlayer": "Mini Player",
         "pictureInPicture": "Picture in Picture",

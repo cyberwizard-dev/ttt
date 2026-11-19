@@ -13,6 +13,16 @@ Upstream project and license: https://github.com/reisxd/TizenTube (GPL-3.0-only)
   resume progress, and prepends it to the home response.
 - Added a **Continue Watching on Home** toggle under TizenTube Settings → Misc.
 
+## A-B repeat
+
+Press the **A-B Repeat** player button (or the yellow remote key) to:
+
+1. set point A at the current position,
+2. set point B and start looping the segment,
+3. press again to clear the loop.
+
+The feature can be disabled under TizenTube Settings → Video Player → Patch Video Player UI.
+
 ## Build
 
 ```sh

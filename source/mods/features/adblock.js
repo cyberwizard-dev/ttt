@@ -256,6 +256,30 @@ JSON.parse = function () {
       }
     }
 
+    if (r?.transportControls?.transportControlsRenderer?.promotedActions && configRead('enableABRepeat')) {
+      const promotedActions = r.transportControls.transportControlsRenderer.promotedActions;
+      const alreadyAdded = promotedActions.some(action =>
+        action && action.type === 'TRANSPORT_CONTROLS_BUTTON_TYPE_TIZENTUBE_AB_REPEAT');
+
+      if (!alreadyAdded) {
+        promotedActions.push({
+          type: 'TRANSPORT_CONTROLS_BUTTON_TYPE_TIZENTUBE_AB_REPEAT',
+          button: {
+            buttonRenderer: ButtonRenderer(
+              false,
+              t('player.abRepeat.button'),
+              'TIMER',
+              {
+                clickTrackingParams: null,
+                customAction: {
+                  action: 'AB_REPEAT_CYCLE'
+                }
+              })
+          }
+        });
+      }
+    }
+
     if (r?.transportControls?.transportControlsRenderer?.promotedActions && configRead('enableSponsorBlockHighlight')) {
       if (window?.sponsorblock?.segments) {
         const category = window.sponsorblock.segments.find(seg => seg.category === 'poi_highlight');

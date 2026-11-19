@@ -372,6 +372,11 @@ export default function modernUI(update, parameters) {
                             value: 'enableSpeedControlsButton'
                         },
                         {
+                            name: t('settings.options.videoPlayer.options.patching.options.abRepeat'),
+                            icon: 'TIMER',
+                            value: 'enableABRepeat'
+                        },
+                        {
                             name: t('settings.options.videoPlayer.options.patching.options.addMPBtn'),
                             icon: 'CLEAR_COOKIES',
                             value: 'enableMPButton'
