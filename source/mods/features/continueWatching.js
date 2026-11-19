@@ -14,16 +14,75 @@ const STORE = 'tt-continue-watching';
 const FETCH_TIMEOUT = 15000;
 const MIN_REFRESH = 30000;
 const DEFAULT_REFRESH_MINUTES = 5;
+const DEBUG_CW = true;
 
 let cachedShelf = null;
 let fetching = false;
 let lastFetch = 0;
 let playerHooked = false;
+let retryTimer = null;
 
 try {
   cachedShelf = JSON.parse(window.localStorage[STORE] || 'null');
 } catch (_) {
   cachedShelf = null;
+}
+
+function cwDebug(text) {
+  if (!DEBUG_CW) return;
+  try {
+    let el = document.getElementById('tt-cw-debug');
+    if (!el) {
+      el = document.createElement('div');
+      el.id = 'tt-cw-debug';
+      el.style.cssText = 'position:fixed;top:14px;left:14px;z-index:2147483647;background:rgba(0,0,0,.88);color:#7dff7d;font:18px/1.35 monospace;padding:10px 14px;border:2px solid #7dff7d;border-radius:8px;max-width:58%;white-space:pre-wrap;pointer-events:none;';
+      (document.body || document.documentElement).appendChild(el);
+    }
+    el.textContent = 'CW DEBUG\n' + text;
+  } catch (_) {
+    // Diagnostics must never break the feature.
+  }
+}
+
+function shelfItemCount(shelf) {
+  const list = shelf && shelf.shelfRenderer && shelf.shelfRenderer.content &&
+    shelf.shelfRenderer.content.horizontalListRenderer;
+  return (list && list.items && list.items.length) || 0;
+}
+
+cwDebug('cache=' + (cachedShelf ? shelfItemCount(cachedShelf) + ' items' : 'none'));
+
+function summarizeResponse(response) {
+  const acc = { shelf: 0, grid: 0, lockup: 0, tile: 0, resume: 0, sectionList: 0, tvSurface: 0 };
+
+  function walk(node, depth) {
+    if (!node || typeof node !== 'object' || depth > 20) return;
+    if (Array.isArray(node)) {
+      for (let i = 0; i < node.length; i++) walk(node[i], depth + 1);
+      return;
+    }
+    if (node.shelfRenderer) acc.shelf++;
+    if (node.gridRenderer) acc.grid++;
+    if (node.sectionListRenderer) acc.sectionList++;
+    if (node.tvSurfaceContentRenderer) acc.tvSurface++;
+    if (node.lockupViewModel) {
+      acc.lockup++;
+      if (resumePercent({ lockupViewModel: node.lockupViewModel }) > 0) acc.resume++;
+    }
+    if (node.tileRenderer) {
+      acc.tile++;
+      if (resumePercent({ tileRenderer: node.tileRenderer }) > 0) acc.resume++;
+    }
+    const keys = Object.keys(node);
+    for (let i = 0; i < keys.length; i++) {
+      const key = keys[i];
+      if (key === 'responseContext' || key === 'frameworkUpdates' || key === 'trackingParams') continue;
+      walk(node[key], depth + 1);
+    }
+  }
+
+  walk(response, 0);
+  return acc;
 }
 
 function textOf(t) {
@@ -162,13 +221,27 @@ function fetchBrowse(svc, identity) {
   });
 }
 
+function scheduleRetry(delay) {
+  if (retryTimer) return;
+  retryTimer = setTimeout(function () {
+    retryTimer = null;
+    refreshContinueWatching();
+  }, delay || 1500);
+}
+
 export function refreshContinueWatching() {
   if (!configRead('enableContinueWatching')) return;
-  if (fetching || Date.now() - lastFetch < MIN_REFRESH) return;
+  if (fetching) return;
+  if (cachedShelf && Date.now() - lastFetch < MIN_REFRESH) return;
 
   const svc = services();
-  if (!svc) return;
+  if (!svc) {
+    cwDebug('services: not ready, retrying');
+    scheduleRetry(1200);
+    return;
+  }
 
+  cwDebug('services: ready, fetching FEhistory');
   fetching = true;
 
   svc.identity.get()
@@ -176,7 +249,13 @@ export function refreshContinueWatching() {
       return fetchBrowse(svc, identity);
     })
     .then(function (response) {
+      const summary = summarizeResponse(response);
       const shelf = findContinueShelf(response);
+      const counts = 'shelves=' + summary.shelf + ' grids=' + summary.grid +
+        ' lockups=' + summary.lockup + ' tiles=' + summary.tile +
+        ' resume=' + summary.resume + ' sectionLists=' + summary.sectionList +
+        ' tvSurface=' + summary.tvSurface;
+
       if (shelf) {
         cachedShelf = JSON.parse(JSON.stringify(shelf));
         try {
@@ -184,10 +263,18 @@ export function refreshContinueWatching() {
         } catch (_) {
           // Storage full or unavailable: keep the in-memory copy.
         }
+        cwDebug('hist: FOUND "' + (titleOf(shelf) || '(untitled)') + '" items=' +
+          shelfItemCount(shelf) + '\n' + counts);
         console.info('[ContinueWatching] cached:', titleOf(shelf) || 'resume shelf');
+      } else {
+        cwDebug('hist: NO SHELF\n' + counts);
+        console.warn('[ContinueWatching] no resume shelf in FEhistory');
+        scheduleRetry(5000);
       }
     }, function (error) {
+      cwDebug('hist: fetch failed: ' + (error && error.message));
       console.warn('[ContinueWatching] history fetch failed:', error && error.message);
+      scheduleRetry(5000);
     })
     .then(function () {
       fetching = false;
@@ -219,6 +306,7 @@ export function injectContinueWatching(response) {
   if (list) list.selectedIndex = 0;
 
   contents.unshift(shelf);
+  cwDebug('inject: added row (' + shelfItemCount(shelf) + ' items)');
 }
 
 function hookPlayer() {
